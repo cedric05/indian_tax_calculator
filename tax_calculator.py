@@ -1,3 +1,7 @@
+BASIC_PAY_PER = 0.4
+EPF_PER = 0.12
+ESPP = 0.15
+
 class TaxCalculator:
     def __init__(self, income):
         self.income = income
@@ -13,7 +17,9 @@ class TaxCalculator:
 
     def calculate_tax(self):
         taxable_income = self.income - self.calculate_deductions()
-        self.tax_breakdown.append({"category": f"Taxable Income: {taxable_income}", "amount": taxable_income})
+        self.tax_breakdown.append(
+            {"category": f"Taxable Income: {taxable_income}", "amount": taxable_income}
+        )
         tax_collected = 0
         if taxable_income <= 3:
             tax_collected = 0
@@ -37,9 +43,13 @@ class TaxCalculator:
             tax_collected += self._add_tax(10, 12, 0.15)
             tax_collected += self._add_tax(7, 10, 0.1)
             tax_collected += self._add_tax(3, 7, 0.05)
-        self.tax_breakdown.append({"category": f"Net tax: {tax_collected}", "amount": tax_collected})
+        self.tax_breakdown.append(
+            {"category": f"Net tax: {tax_collected}", "amount": tax_collected}
+        )
         cess = tax_collected * 0.04
-        self.tax_breakdown.append({"category": f"Education Cess(0.04) of {tax_collected}", "amount": cess})
+        self.tax_breakdown.append(
+            {"category": f"Education Cess(0.04) of {tax_collected}", "amount": cess}
+        )
 
         surcharge = self._calculate_surcharge(taxable_income, tax_collected)
         tax_collected += cess + surcharge
@@ -49,7 +59,9 @@ class TaxCalculator:
     def _add_tax(self, start, end, percentage):
         taxable = max(0, min(self.income, end) - start)
         tax = taxable * percentage
-        self.tax_breakdown.append({"category": f"{start} to {end} @ {percentage * 100}%", "amount": tax})
+        self.tax_breakdown.append(
+            {"category": f"{start} to {end} @ {percentage * 100}%", "amount": tax}
+        )
         return tax
 
     def _calculate_surcharge(self, income, tax_collected):
@@ -62,7 +74,12 @@ class TaxCalculator:
             surcharge_rate = 0.25
 
         surcharge = surcharge_rate * tax_collected
-        self.tax_breakdown.append({"category": f"Surcharge ({surcharge_rate}) of {tax_collected}", "amount": surcharge})
+        self.tax_breakdown.append(
+            {
+                "category": f"Surcharge ({surcharge_rate}) of {tax_collected}",
+                "amount": surcharge,
+            }
+        )
         return surcharge
 
     def effective_tax_rate(self):
@@ -70,11 +87,12 @@ class TaxCalculator:
         return (total_tax / self.income) * 100
 
     def add_non_tax_deductable(self, amount, reason):
-        self.non_tax_deductable.append({"amount": amount, "reason": reason})
-    
+        self.non_tax_deductable.append(
+            {"amount": amount, "monthly": amount / 12, "reason": reason}
+        )
+
     def total_non_tax_deducatble(self):
         return sum(i["amount"] for i in self.non_tax_deductable)
-
 
     def pretty_print(self):
         tax_deductables = self.calculate_deductions()
@@ -94,5 +112,19 @@ class TaxCalculator:
         print(f"Net Income After Deductions: ₹{self.income - tax_deductables:.2f}")
         print(f"Total Tax: ₹{total_tax:.2f}")
         print(f"Net Income after Deductions: ₹{effective_income}")
+        for non_tax_deduction in self.non_tax_deductable:
+            print(
+                f"{non_tax_deduction['reason']}: ₹{non_tax_deduction['amount']:.2f}, monthly {non_tax_deduction['monthly']:.2f}"
+            )
         print(f"Effective Tax Rate: {self.effective_tax_rate():.2f}%")
         print(f"Monthly pay is : {net_effective_income/12}")
+
+    def add_common_deductions(self):
+        basic_pay = self.income * BASIC_PAY_PER
+        epf = basic_pay * EPF_PER
+        espp = (self.income - epf) * ESPP
+        self.add_deduction(0.75, "Standard deduction") # just for tax calculation
+        self.add_deduction(epf, "Company EPF deduction") # just for calculation
+        self.add_non_tax_deductable(epf, "Employee EPF deduction") # deducted monthly
+        self.add_non_tax_deductable(epf, "Company EPF deduction") # deducted monthly
+        self.add_non_tax_deductable(espp, "ESPP") # deducted monthly
