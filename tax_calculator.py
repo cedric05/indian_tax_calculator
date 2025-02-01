@@ -2,12 +2,31 @@ BASIC_PAY_PER = 0.4
 EPF_PER = 0.12
 ESPP = 0.15
 
+# Define tax slabs as a configuration
+TAX_SLABS = [
+    (3, 7, 0.05),
+    (7, 10, 0.1),
+    (10, 12, 0.15),
+    (12, 15, 0.2),
+    (15, float('inf'), 0.3)  # Last slab with no upper limit
+]
+
+TAX_SLAB_2025_2026 = [
+    (4, 8, 0.05),
+    (8, 12, 0.1),
+    (12, 16, 0.15),
+    (16, 20, 0.2),
+    (20, 24, 0.25),
+    (24, float('inf'), 0.3)  # Last slab with no upper limit
+]
+
 class TaxCalculator:
-    def __init__(self, income):
+    def __init__(self, income, new_slabs = TAX_SLABS):
         self.income = income
         self.deductions = []
         self.tax_breakdown = []
         self.non_tax_deductable = []
+        self.tax_slabs = new_slabs
 
     def add_deduction(self, amount, reason):
         self.deductions.append({"amount": amount, "reason": reason})
@@ -21,28 +40,13 @@ class TaxCalculator:
             {"category": f"Taxable Income: {taxable_income}", "amount": taxable_income}
         )
         tax_collected = 0
-        if taxable_income <= 3:
-            tax_collected = 0
-        elif 3 < taxable_income <= 7:
-            tax_collected += self._add_tax(3, taxable_income, 0.05)
-        elif 7 < taxable_income <= 10:
-            tax_collected += self._add_tax(7, taxable_income, 0.1)
-            tax_collected += self._add_tax(3, 7, 0.05)
-        elif 10 < taxable_income <= 12:
-            tax_collected += self._add_tax(10, taxable_income, 0.15)
-            tax_collected += self._add_tax(7, 10, 0.1)
-            tax_collected += self._add_tax(3, 7, 0.05)
-        elif 12 < taxable_income <= 15:
-            tax_collected += self._add_tax(12, taxable_income, 0.2)
-            tax_collected += self._add_tax(10, 12, 0.15)
-            tax_collected += self._add_tax(7, 10, 0.1)
-            tax_collected += self._add_tax(3, 7, 0.05)
-        elif 15 < taxable_income:
-            tax_collected += self._add_tax(15, taxable_income, 0.3)
-            tax_collected += self._add_tax(12, 15, 0.2)
-            tax_collected += self._add_tax(10, 12, 0.15)
-            tax_collected += self._add_tax(7, 10, 0.1)
-            tax_collected += self._add_tax(3, 7, 0.05)
+        for lower, upper, rate in self.tax_slabs:
+            if taxable_income <= lower:
+                break  # Stop if the income is below the current slab
+
+            effective_upper = min(upper, taxable_income)  # Don't exceed taxable income
+            tax_collected += self._add_tax(lower, effective_upper, rate)
+
         self.tax_breakdown.append(
             {"category": f"Net tax: {tax_collected}", "amount": tax_collected}
         )
