@@ -21,12 +21,13 @@ TAX_SLAB_2025_2026 = [
 ]
 
 class TaxCalculator:
-    def __init__(self, income, slab = TAX_SLABS):
+    def __init__(self, income, slab, min):
         self.income = income
         self.deductions = []
         self.tax_breakdown = []
         self.non_tax_deductable = []
         self.tax_slabs = slab
+        self.min = min
 
     def add_deduction(self, amount, reason):
         self.deductions.append({"amount": amount, "reason": reason})
@@ -35,6 +36,8 @@ class TaxCalculator:
         return sum(d["amount"] for d in self.deductions)
 
     def calculate_tax(self):
+        if self.income < self.min:
+            return 0
         taxable_income = self.income - self.calculate_deductions()
         self.tax_breakdown.append(
             {"category": f"Taxable Income: {taxable_income}", "amount": taxable_income}
