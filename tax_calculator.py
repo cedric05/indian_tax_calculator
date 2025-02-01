@@ -21,12 +21,12 @@ TAX_SLAB_2025_2026 = [
 ]
 
 class TaxCalculator:
-    def __init__(self, income, new_slabs = TAX_SLABS):
+    def __init__(self, income, slab = TAX_SLABS):
         self.income = income
         self.deductions = []
         self.tax_breakdown = []
         self.non_tax_deductable = []
-        self.tax_slabs = new_slabs
+        self.tax_slabs = slab
 
     def add_deduction(self, amount, reason):
         self.deductions.append({"amount": amount, "reason": reason})
@@ -50,7 +50,7 @@ class TaxCalculator:
         self.tax_breakdown.append(
             {"category": f"Net tax: {tax_collected}", "amount": tax_collected}
         )
-        cess = tax_collected * 0.04
+        cess = self._calculate_cess(tax_collected)
         self.tax_breakdown.append(
             {"category": f"Education Cess(0.04) of {tax_collected}", "amount": cess}
         )
@@ -59,6 +59,10 @@ class TaxCalculator:
         tax_collected += cess + surcharge
 
         return tax_collected
+
+    def _calculate_cess(self, tax_collected):
+        cess = tax_collected * 0.04
+        return cess
 
     def _add_tax(self, start, end, percentage):
         taxable = max(0, min(self.income, end) - start)
@@ -122,6 +126,16 @@ class TaxCalculator:
             )
         print(f"Effective Tax Rate: {self.effective_tax_rate():.2f}%")
         print(f"Monthly pay is : {net_effective_income/12}")
+
+        return {
+            "gross_income": self.income,
+            "income_after_tax": effective_income,
+            "total_tax": total_tax,
+            "deductions": non_tax_deducatbles,
+            "net_income": net_effective_income,
+            "tax_percentage": self.effective_tax_rate(),
+            "monthly_pay": net_effective_income/12,
+        }
 
     def add_common_deductions(self):
         basic_pay = self.income * BASIC_PAY_PER
