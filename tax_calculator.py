@@ -2,12 +2,32 @@ BASIC_PAY_PER = 0.4
 EPF_PER = 0.12
 ESPP = 0.15
 
+# Define tax slabs as a configuration
+TAX_SLABS = [
+    (3, 7, 0.05),
+    (7, 10, 0.1),
+    (10, 12, 0.15),
+    (12, 15, 0.2),
+    (15, float('inf'), 0.3)  # Last slab with no upper limit
+]
+
+TAX_SLAB_2025_2026 = [
+    (4, 8, 0.05),
+    (8, 12, 0.1),
+    (12, 16, 0.15),
+    (16, 20, 0.2),
+    (20, 24, 0.25),
+    (24, float('inf'), 0.3)  # Last slab with no upper limit
+]
+
 class TaxCalculator:
-    def __init__(self, income):
+    def __init__(self, income, slab):
         self.income = income
         self.deductions = []
         self.tax_breakdown = []
         self.non_tax_deductable = []
+        self.tax_slabs = slab
+        self.min = slab[0][0]
 
     def add_deduction(self, amount, reason):
         self.deductions.append({"amount": amount, "reason": reason})
@@ -16,37 +36,24 @@ class TaxCalculator:
         return sum(d["amount"] for d in self.deductions)
 
     def calculate_tax(self):
+        if self.income < self.min:
+            return 0
         taxable_income = self.income - self.calculate_deductions()
         self.tax_breakdown.append(
             {"category": f"Taxable Income: {taxable_income}", "amount": taxable_income}
         )
         tax_collected = 0
-        if taxable_income <= 3:
-            tax_collected = 0
-        elif 3 < taxable_income <= 7:
-            tax_collected += self._add_tax(3, taxable_income, 0.05)
-        elif 7 < taxable_income <= 10:
-            tax_collected += self._add_tax(7, taxable_income, 0.1)
-            tax_collected += self._add_tax(3, 7, 0.05)
-        elif 10 < taxable_income <= 12:
-            tax_collected += self._add_tax(10, taxable_income, 0.15)
-            tax_collected += self._add_tax(7, 10, 0.1)
-            tax_collected += self._add_tax(3, 7, 0.05)
-        elif 12 < taxable_income <= 15:
-            tax_collected += self._add_tax(12, taxable_income, 0.2)
-            tax_collected += self._add_tax(10, 12, 0.15)
-            tax_collected += self._add_tax(7, 10, 0.1)
-            tax_collected += self._add_tax(3, 7, 0.05)
-        elif 15 < taxable_income:
-            tax_collected += self._add_tax(15, taxable_income, 0.3)
-            tax_collected += self._add_tax(12, 15, 0.2)
-            tax_collected += self._add_tax(10, 12, 0.15)
-            tax_collected += self._add_tax(7, 10, 0.1)
-            tax_collected += self._add_tax(3, 7, 0.05)
+        for lower, upper, rate in self.tax_slabs:
+            if taxable_income <= lower:
+                break  # Stop if the income is below the current slab
+
+            effective_upper = min(upper, taxable_income)  # Don't exceed taxable income
+            tax_collected += self._add_tax(lower, effective_upper, rate)
+
         self.tax_breakdown.append(
             {"category": f"Net tax: {tax_collected}", "amount": tax_collected}
         )
-        cess = tax_collected * 0.04
+        cess = self._calculate_cess(tax_collected)
         self.tax_breakdown.append(
             {"category": f"Education Cess(0.04) of {tax_collected}", "amount": cess}
         )
@@ -55,6 +62,10 @@ class TaxCalculator:
         tax_collected += cess + surcharge
 
         return tax_collected
+
+    def _calculate_cess(self, tax_collected):
+        cess = tax_collected * 0.04
+        return cess
 
     def _add_tax(self, start, end, percentage):
         taxable = max(0, min(self.income, end) - start)
@@ -119,6 +130,16 @@ class TaxCalculator:
         print(f"Effective Tax Rate: {self.effective_tax_rate():.2f}%")
         print(f"Monthly pay is : {net_effective_income/12}")
 
+        return {
+            "gross_income": self.income,
+            "income_after_tax": effective_income,
+            "total_tax": total_tax,
+            "deductions": non_tax_deducatbles,
+            "net_income": net_effective_income,
+            "tax_percentage": self.effective_tax_rate(),
+            "monthly_pay": net_effective_income/12,
+        }
+
     def add_common_deductions(self):
         basic_pay = self.income * BASIC_PAY_PER
         epf = basic_pay * EPF_PER
@@ -128,3 +149,11 @@ class TaxCalculator:
         self.add_non_tax_deductable(epf, "Employee EPF deduction") # deducted monthly
         self.add_non_tax_deductable(epf, "Company EPF deduction") # deducted monthly
         self.add_non_tax_deductable(espp, "ESPP") # deducted monthly
+
+
+if __name__ == "__main__":
+    import sys
+    INCOME  = int(sys.argv[1])
+    tax_calculator = TaxCalculator(INCOME, TAX_SLAB_2025_2026)
+    tax_calculator.add_common_deductions()
+    tax_calculator.pretty_print()
